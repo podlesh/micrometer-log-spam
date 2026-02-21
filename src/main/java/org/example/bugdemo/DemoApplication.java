@@ -13,6 +13,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Hooks;
 
 import java.time.Duration;
+import java.util.List;
 
 /**
  *
@@ -23,7 +24,7 @@ public class DemoApplication implements CommandLineRunner {
     private final Logger logger = LoggerFactory.getLogger(DemoApplication.class);
 
     @Autowired
-    private WebClient webClient;
+    private WebClient.Builder webClientBuilder;
     @Autowired
     private ObservationRegistry observationRegistry;
 
@@ -31,14 +32,20 @@ public class DemoApplication implements CommandLineRunner {
     public void run(String... args) {
         final Observation observation = Observation.createNotStarted("test", observationRegistry);
         observation.observe(() -> {
-            final ResponseEntity<Void> response = webClient.mutate()
-                    .baseUrl("http://www.github.com")
-                    .build()
-                    .get()
-                    .retrieve()
-                    .toBodilessEntity()
-                    .block(Duration.ofSeconds(5));
-            logger.info(String.format("response: %s%n", response));
+            for (WebClient webClient : List.of(
+                    webClientBuilder.build(),
+                    webClientBuilder.observationRegistry(ObservationRegistry.NOOP).build()
+            )) {
+                final ResponseEntity<Void> response = webClient.mutate()
+                        .baseUrl("http://www.github.com")
+                        .build()
+                        .get()
+                        .retrieve()
+                        .toBodilessEntity()
+                        .block(Duration.ofSeconds(5));
+
+                logger.info(String.format("response: %s%n", response));
+            }
         });
         logger.info(String.format("observation: %s%n", observation));
         System.exit(0);
